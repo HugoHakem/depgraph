@@ -38,8 +38,9 @@ examples:
 
     parser.add_argument(
         "target",
-        help="Namespace to focus on (e.g. 'utils', 'delphi'). "
-             "Only edges pointing into this namespace are shown.",
+        nargs="+",
+        help="Namespaces or .py files to focus on (e.g. 'utils' 'delphi.py'). "
+             "Only edges pointing into these namespaces are shown.",
     )
 
     # ── File selection ────────────────────────────────────────────────────────
@@ -61,10 +62,10 @@ examples:
     sel.add_argument(
         "--exclude",
         nargs="+",
-        default=DEFAULT_EXCLUDES,
+        default=None,
         metavar="PATTERN",
-        help=f"Patterns to exclude during auto-discovery "
-             f"(default: {DEFAULT_EXCLUDES}).",
+        help=f"Additional patterns to exclude during auto-discovery "
+             f"(always combined with defaults: {DEFAULT_EXCLUDES}).",
     )
 
     # ── Output ────────────────────────────────────────────────────────────────
@@ -107,6 +108,20 @@ examples:
     return parser
 
 
+def resolve_targets(targets: list[str]) -> list[str]:
+    namespaces: list[str] = []
+    for t in targets:
+        if t.endswith(".py"):
+            module = Path(t).with_suffix("").as_posix().replace("/", "__")
+            if not module:
+                print(f"Warning: '{t}' has no resolvable module name, skipping.", file=sys.stderr)
+                continue
+            namespaces.append(module)
+        else:
+            namespaces.append(t)
+    return namespaces
+
+
 def resolve_files(args: argparse.Namespace) -> list[Path]:
     if args.files:
         paths: list[Path] = []
@@ -116,7 +131,8 @@ def resolve_files(args: argparse.Namespace) -> list[Path]:
                 print(f"Warning: no files matched '{pattern}'", file=sys.stderr)
             paths.extend(Path(m) for m in matches)
         return sorted(set(paths))
-    return discover_files(args.root, args.exclude)
+    extra = args.exclude or []
+    return discover_files(args.root, DEFAULT_EXCLUDES + extra)
 
 
 def run_pyan3(py_files: list[Path], rankdir: str, depth: str) -> str:
@@ -150,19 +166,24 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
+    namespaces = resolve_targets(args.target)
+    if not namespaces:
+        print("No valid targets provided.", file=sys.stderr)
+        sys.exit(1)
+
     # Resolve output path default
     if args.output is None:
-        args.output = Path(f"{args.target}_deps.{args.format}")
+        args.output = Path(f"{'_'.join(namespaces)}_deps.{args.format}")
 
     py_files = resolve_files(args)
     if not py_files:
         print("No Python files found.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Analysing {len(py_files)} files for '{args.target}' callers...", file=sys.stderr)
+    print(f"Analysing {len(py_files)} files for {namespaces} callers...", file=sys.stderr)
 
     raw_dot = run_pyan3(py_files, args.rankdir, args.depth)
-    filtered = filter_dot(raw_dot, args.target)
+    filtered = filter_dot(raw_dot, namespaces)
 
     if args.format == "dot":
         args.output.write_text(filtered)

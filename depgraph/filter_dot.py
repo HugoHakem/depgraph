@@ -1,15 +1,15 @@
-"""Filter a pyan3-generated dot graph to show only callers of a target namespace."""
+"""Filter a pyan3-generated dot graph to show only callers of target namespaces."""
 
 import re
 
 
-def filter_dot(dot_content: str, target_namespace: str) -> str:
+def filter_dot(dot_content: str, target_namespaces: list[str]) -> str:
     """
-    Prune a full pyan3 dot graph to nodes and edges relevant to target_namespace.
+    Prune a full pyan3 dot graph to nodes and edges relevant to target_namespaces.
 
     Keeps:
-      - All nodes belonging to target_namespace.
-      - All edges whose destination is inside target_namespace.
+      - All nodes belonging to any target namespace.
+      - All edges whose destination is inside any target namespace.
       - All external nodes that appear as a source of such an edge.
 
     Drops:
@@ -27,31 +27,32 @@ def filter_dot(dot_content: str, target_namespace: str) -> str:
             cluster_name = stripped.split('"')[1].replace("cluster_", "")
             clusters.add(cluster_name)
 
-    # Pass 1: keep structural lines; only keep edges pointing INTO target_namespace
+    def matches_any_target(name: str) -> bool:
+        return any(name.startswith(ns) for ns in target_namespaces)
+
+    # Pass 1: keep structural lines; only keep edges pointing INTO a target namespace
     valid_lines: list[str] = []
     active_external_nodes: set[str] = set()
     for line in lines:
         if "->" in line:
-            dest = line.split("->")[1].strip()
-            if dest.startswith(f'"{target_namespace}'):
+            dest = line.split("->")[1].strip().strip('"').split("[")[0].strip()
+            if matches_any_target(dest):
                 valid_lines.append(line)
                 src_node = line.split("->")[0].strip()
                 active_external_nodes.add(src_node)
         else:
             valid_lines.append(line)
 
-    # Pass 2: drop nodes that are neither in target_namespace nor active external callers
+    # Pass 2: drop nodes that are neither in a target namespace nor active external callers
     final_lines: list[str] = []
     for line in valid_lines:
         stripped = line.strip()
         if "->" not in line and stripped.startswith('"') and "[" in line:
             node_name = stripped.split("[")[0].strip().strip('"')
-            # Drop "flying" node if a cluster subgraph already represents it
             if node_name in clusters:
                 continue
-            # Drop nodes unrelated to target that made no calls into target
             if (
-                not node_name.startswith(target_namespace)
+                not matches_any_target(node_name)
                 and f'"{node_name}"' not in active_external_nodes
             ):
                 continue
