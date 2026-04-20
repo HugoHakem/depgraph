@@ -13,6 +13,42 @@ def _collect_clusters(lines: list[str]) -> set[str]:
     return clusters
 
 
+def _clusters_with_method_callers(
+    lines: list[str], clusters: set[str], matches_any_target
+) -> set[str]:
+    """Clusters that have ≥1 method-level edge pointing INTO a target namespace."""
+    result: set[str] = set()
+    for line in lines:
+        if "->" not in line:
+            continue
+        dest = line.split("->")[1].strip().strip('"').split("[")[0].strip()
+        if not matches_any_target(dest):
+            continue
+        src = line.split("->")[0].strip().strip('"')
+        for cluster in clusters:
+            if src != cluster and src.startswith(cluster + "__"):
+                result.add(cluster)
+    return result
+
+
+def _clusters_with_method_callees(
+    lines: list[str], clusters: set[str], matches_any_target
+) -> set[str]:
+    """Clusters that have ≥1 method-level edge pointing FROM a target namespace."""
+    result: set[str] = set()
+    for line in lines:
+        if "->" not in line:
+            continue
+        src = line.split("->")[0].strip().strip('"')
+        if not matches_any_target(src):
+            continue
+        dest = line.split("->")[1].strip().split("[")[0].rstrip(";").strip().strip('"')
+        for cluster in clusters:
+            if dest != cluster and dest.startswith(cluster + "__"):
+                result.add(cluster)
+    return result
+
+
 def _remove_empty_subgraphs(text: str) -> str:
     empty_subgraph = re.compile(
         r'subgraph "cluster_[^"]+" \{\s*graph \[[^\]]+\];\s*\}', re.MULTILINE
@@ -40,6 +76,9 @@ def filter_dot(dot_content: str, target_namespaces: list[str]) -> str:
     def matches_any_target(name: str) -> bool:
         return any(name.startswith(ns) for ns in target_namespaces)
 
+    # Clusters that have method-level edges into target: their bare class edge is redundant.
+    clusters_with_methods = _clusters_with_method_callers(lines, clusters, matches_any_target)
+
     # Pass 1: keep structural lines; only keep edges pointing INTO a target namespace
     valid_lines: list[str] = []
     active_external_nodes: set[str] = set()
@@ -49,9 +88,9 @@ def filter_dot(dot_content: str, target_namespaces: list[str]) -> str:
             if matches_any_target(dest):
                 src_node = line.split("->")[0].strip()
                 src_name = src_node.strip('"')
-                # Skip edges whose source is a class/module node that already has a
-                # cluster subgraph — the cluster captures the dependency with more detail.
-                if src_name in clusters:
+                # Skip bare class/module edges only when method-level edges also exist
+                # for the same cluster — those are more informative and make this redundant.
+                if src_name in clusters_with_methods:
                     continue
                 valid_lines.append(line)
                 active_external_nodes.add(src_node)
@@ -97,6 +136,9 @@ def filter_dot_outgoing(dot_content: str, target_namespaces: list[str]) -> str:
     def matches_any_target(name: str) -> bool:
         return any(name.startswith(ns) for ns in target_namespaces)
 
+    # Clusters that have method-level edges from target: their bare class edge is redundant.
+    clusters_with_methods = _clusters_with_method_callees(lines, clusters, matches_any_target)
+
     # Pass 1: keep edges pointing OUT FROM a target namespace
     valid_lines: list[str] = []
     active_external_nodes: set[str] = set()
@@ -106,9 +148,9 @@ def filter_dot_outgoing(dot_content: str, target_namespaces: list[str]) -> str:
             if matches_any_target(src):
                 dest_node = line.split("->")[1].strip().split("[")[0].rstrip(";").strip()
                 dest_name = dest_node.strip('"')
-                # Skip edges whose dest is a class/module node that already has a
-                # cluster subgraph — the cluster captures the dependency with more detail.
-                if dest_name in clusters:
+                # Skip bare class/module edges only when method-level edges also exist
+                # for the same cluster — those are more informative and make this redundant.
+                if dest_name in clusters_with_methods:
                     continue
                 valid_lines.append(line)
                 active_external_nodes.add(dest_node)
