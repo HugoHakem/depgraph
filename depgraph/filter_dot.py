@@ -99,8 +99,13 @@ def filter_dot_outgoing(dot_content: str, target_namespaces: list[str]) -> str:
         if "->" in line:
             src = line.split("->")[0].strip().strip('"')
             if matches_any_target(src):
+                dest_node = line.split("->")[1].strip().split("[")[0].rstrip(";").strip()
+                dest_name = dest_node.strip('"')
+                # Skip edges whose dest is a class/module node that already has a
+                # cluster subgraph — the cluster captures the dependency with more detail.
+                if dest_name in clusters:
+                    continue
                 valid_lines.append(line)
-                dest_node = line.split("->")[1].strip().split("[")[0].strip()
                 active_external_nodes.add(dest_node)
         else:
             valid_lines.append(line)
