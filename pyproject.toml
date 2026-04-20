@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "depgraph"
+version = "0.1.0"
+description = "Dependency graph showing callers of a target Python namespace"
+requires-python = ">=3.11"
+dependencies = []
+# Runtime dependencies are external CLI tools: pyan3 (via uvx) and graphviz (dot)
+
+[project.scripts]
+depgraph = "depgraph.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["depgraph"]
