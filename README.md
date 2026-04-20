@@ -2,6 +2,12 @@
 
 A CLI tool that generates a dependency graph showing which Python modules call into a target namespace or file. It wraps [pyan3](https://github.com/Technologicat/pyan) for static analysis and [Graphviz](https://graphviz.org/) for rendering.
 
+> If you need full module-level dependency graphs with nice visuals out of the box, also check out [pydeps](https://github.com/thebjorn/pydeps). `depgraph` focuses on a different use case: filtering the call graph down to what calls *into* a specific target.
+
+## Acknowledgements
+
+- [pyan](https://github.com/Technologicat/pyan) — static analysis engine that performs the call-graph extraction underlying this tool.
+
 ## Requirements
 
 - Python >= 3.11
