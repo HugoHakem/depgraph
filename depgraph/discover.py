@@ -8,7 +8,6 @@ DEFAULT_EXCLUDES = [
     ".venv",
     "venv",
     "env",
-    "legacy",
     ".git",
     "node_modules",
     "build",
