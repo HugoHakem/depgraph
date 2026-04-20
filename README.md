@@ -2,10 +2,10 @@
 
 Two complementary CLI tools for exploring Python call graphs via static analysis. Both wrap [pyan3](https://github.com/Technologicat/pyan) for AST-based analysis and [Graphviz](https://graphviz.org/) for rendering.
 
-| Command | Question answered |
-|---------|-------------------|
-| `depson` | Who depends on X? — shows callers *into* a target namespace |
-| `depsof` | What does X depend on? — shows callees *from* a target namespace |
+| Command | Question answered | Typical use case |
+|---------|-------------------|------------------|
+| `depson` | Who calls into X? | Spot orphan functions — if nothing shows up, X is unreachable |
+| `depsof` | What does X call into? | Given a working script, see which other functions in the codebase it relies on |
 
 > For full module-level dependency graphs with nice visuals out of the box, also check out [pydeps](https://github.com/thebjorn/pydeps). These tools focus on a different use case: filtering the call graph down to function-level granularity around a specific target.
 
@@ -87,10 +87,10 @@ Built-in excluded directories: `__pycache__`, `.venv`, `venv`, `env`, `legacy`, 
 ## Examples
 
 ```bash
-# Who calls into 'utils'?
+# Spot orphan functions — is anything actually calling into 'utils'?
 depson utils --root .
 
-# What does 'utils' call into?
+# Given that 'utils' works, which other functions in the codebase does it rely on?
 depsof utils --root .
 
 # Target multiple namespaces
