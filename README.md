@@ -1,12 +1,17 @@
 # depgraph
 
-A CLI tool that generates a dependency graph showing which Python modules call into a target namespace or file. It wraps [pyan3](https://github.com/Technologicat/pyan) for static analysis and [Graphviz](https://graphviz.org/) for rendering.
+Two complementary CLI tools for exploring Python call graphs via static analysis. Both wrap [pyan3](https://github.com/Technologicat/pyan) for AST-based analysis and [Graphviz](https://graphviz.org/) for rendering.
 
-> If you need full module-level dependency graphs with nice visuals out of the box, also check out [pydeps](https://github.com/thebjorn/pydeps). `depgraph` focuses on a different use case: filtering the call graph down to what calls *into* a specific target.
+| Command | Question answered |
+|---------|-------------------|
+| `depson` | Who depends on X? — shows callers *into* a target namespace |
+| `depsof` | What does X depend on? — shows callees *from* a target namespace |
+
+> For full module-level dependency graphs with nice visuals out of the box, also check out [pydeps](https://github.com/thebjorn/pydeps). These tools focus on a different use case: filtering the call graph down to function-level granularity around a specific target.
 
 ## Acknowledgements
 
-- [pyan](https://github.com/Technologicat/pyan) — static analysis engine that performs the call-graph extraction underlying this tool.
+- [pyan](https://github.com/Technologicat/pyan) — static analysis engine that performs the call-graph extraction underlying these tools.
 
 ## Requirements
 
@@ -19,7 +24,8 @@ A CLI tool that generates a dependency graph showing which Python modules call i
 ### Run directly from GitHub (no clone needed)
 
 ```bash
-uvx --from git+https://github.com/HugoHakem/depgraph depgraph <args>
+uvx --from git+https://github.com/HugoHakem/depgraph depson <args>
+uvx --from git+https://github.com/HugoHakem/depgraph depsof <args>
 ```
 
 ### Install locally
@@ -32,8 +38,11 @@ uv pip install .
 
 ## Usage
 
+Both commands share the same interface:
+
 ```bash
-depgraph <target> [target ...] [options]
+depson <target> [target ...] [options]
+depsof <target> [target ...] [options]
 ```
 
 ### Targets
@@ -46,7 +55,8 @@ Each target can be:
 Multiple targets can be mixed freely:
 
 ```bash
-depgraph utils delphi/helpers.py trainer --root .
+depson utils delphi/helpers.py trainer --root .
+depsof utils delphi/helpers.py trainer --root .
 ```
 
 ### File selection
@@ -61,11 +71,11 @@ Built-in excluded directories: `__pycache__`, `.venv`, `venv`, `env`, `legacy`, 
 
 ### Output
 
-| Flag                     | Description                                      |
-|--------------------------|--------------------------------------------------|
-| `-o FILE`                | Output file (default: `<targets>_deps.<format>`) |
-| `--format svg\|png\|dot` | Output format (default: `svg`)                   |
-| `--keep-dot`             | Also write the intermediate `.dot` file          |
+| Flag                     | Description                                                                   |
+|--------------------------|-------------------------------------------------------------------------------|
+| `-o FILE`                | Output file (default: `<targets>_deps.<format>` / `<targets>_uses.<format>`)  |
+| `--format svg\|png\|dot` | Output format (default: `svg`)                                                |
+| `--keep-dot`             | Also write the intermediate `.dot` file                                       |
 
 ### Graph layout
 
@@ -77,27 +87,30 @@ Built-in excluded directories: `__pycache__`, `.venv`, `venv`, `env`, `legacy`, 
 ## Examples
 
 ```bash
-# Auto-discover all .py files under cwd, show callers of 'utils'
-depgraph utils --root .
+# Who calls into 'utils'?
+depson utils --root .
+
+# What does 'utils' call into?
+depsof utils --root .
 
 # Target multiple namespaces
-depgraph utils delphi --root /path/to/project
+depson utils delphi --root /path/to/project
 
 # Target a specific file
-depgraph src/model/trainer.py --root .
+depson src/model/trainer.py --root .
 
 # Mix namespaces and files
-depgraph utils src/model/trainer.py --root .
+depsof utils src/model/trainer.py --root .
 
 # Explicit file list with glob patterns
-depgraph utils --files "utils/*.py" "delphi/*.py" train.py
+depson utils --files "utils/*.py" "delphi/*.py" train.py
 
 # Exclude an additional directory on top of the defaults
-depgraph utils --root . --exclude experiments
+depsof utils --root . --exclude experiments
 
 # Module-level only (faster, less noise)
-depgraph utils --root . --depth 0
+depson utils --root . --depth 0
 
 # Output as PNG and keep the intermediate .dot file
-depgraph utils --root . -o graph.png --format png --keep-dot
+depsof utils --root . -o graph.png --format png --keep-dot
 ```

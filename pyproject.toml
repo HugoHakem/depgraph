@@ -11,7 +11,8 @@ dependencies = []
 # Runtime dependencies are external CLI tools: pyan3 (via uvx) and graphviz (dot)
 
 [project.scripts]
-depgraph = "depgraph.cli:main"
+depson = "depgraph.depson:main"
+depsof = "depgraph.depsof:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["depgraph"]
